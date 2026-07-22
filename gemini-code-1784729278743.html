@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Costos 3D - Venezuela</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --input-bg: #0f172a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 20px 12px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            color: var(--text-main);
+            margin-bottom: 6px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .grid-layout {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #60a5fa;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+        }
+
+        .row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .labor-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .btn-labor {
+            padding: 8px 4px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .btn-labor.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            font-weight: 600;
+        }
+
+        .cost-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            padding: 6px 0;
+            border-bottom: 1px dashed var(--border-color);
+        }
+
+        .cost-row .label {
+            color: var(--text-muted);
+        }
+
+        .cost-row .value {
+            font-weight: 500;
+        }
+
+        .total-box {
+            background-color: rgba(59, 130, 246, 0.1);
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .total-box .label {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-main);
+        }
+
+        .total-box .value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #60a5fa;
+        }
+
+        .tier-card {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .tier-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .tier-prices {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .usd-price {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .ves-price {
+            font-size: 0.9rem;
+            color: var(--warning);
+            font-weight: 600;
+        }
+
+        .copy-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--success);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: background-color 0.2s;
+        }
+
+        .copy-btn:hover {
+            background-color: #059669;
+        }
+
+        .footer-note {
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>⚡ Calculadora 3D Venezuela</h1>
+        <p>Estructura de Costos & Blindaje Cambiario (USDT vs BCV)</p>
+    </header>
+
+    <div class="grid-layout">
+        <!-- COLUMNA 1: ENTRADAS DE DATOS -->
+        <div class="card">
+            <div class="card-title">📝 Datos del Pedido</div>
+
+            <div class="row-2">
+                <div class="form-group">
+                    <label for="peso">Peso Pieza (g)</label>
+                    <input type="number" id="peso" class="form-control" value="120" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="costoBobina">Costo Bobina ($/kg)</label>
+                    <input type="number" id="costoBobina" class="form-control" value="20" step="0.5">
+                </div>
+            </div>
+
+            <div class="row-2">
+                <div class="form-group">
+                    <label for="tiempo">Tiempo Impresión (hrs)</label>
+                    <input type="number" id="tiempo" class="form-control" value="6" step="0.5">
+                </div>
+                <div class="form-group">
+                    <label for="costoHora">Costo Máquina ($/hr)</label>
+                    <input type="number" id="costoHora" class="form-control" value="0.25" step="0.05">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Mano de Obra / Post-procesado</label>
+                <div class="labor-options">
+                    <button type="button" class="btn-labor" onclick="setLabor(0.5, this)">Baja ($0.5)</button>
+                    <button type="button" class="btn-labor active" onclick="setLabor(1.5, this)">Std ($1.5)</button>
+                    <button type="button" class="btn-labor" onclick="setLabor(2.0, this)">Alta ($2.0)</button>
+                </div>
+            </div>
+
+            <div class="card-title" style="margin-top: 18px;">🇻🇪 Ajuste Cambiario</div>
+
+            <div class="row-2">
+                <div class="form-group">
+                    <label for="brecha">% Brecha (USDT/BCV)</label>
+                    <input type="number" id="brecha" class="form-control" value="30" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="tasaBcv">Tasa BCV (VES/$)</label>
+                    <input type="number" id="tasaBcv" class="form-control" value="540" step="1">
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA 2: RESULTADOS Y PRECIOS -->
+        <div class="card">
+            <div class="card-title">📊 Desglose de Costos Netos</div>
+
+            <div class="cost-row"><span class="label">Material:</span><span class="value" id="resMat">$0.00</span></div>
+            <div class="cost-row"><span class="label">Máquina:</span><span class="value" id="resMaq">$0.00</span></div>
+            <div class="cost-row"><span class="label">Energía:</span><span class="value" id="resEne">$0.00</span></div>
+            <div class="cost-row"><span class="label">Mano de Obra:</span><span class="value" id="resObra">$0.00</span></div>
+            <div class="cost-row"><span class="label">Riesgo / Fallos (10%):</span><span class="value" id="resRiesgo">$0.00</span></div>
+
+            <div class="total-box">
+                <span class="label">COSTO REAL OPERATIVO</span>
+                <span class="value" id="resCostoReal">$0.00 USD</span>
+            </div>
+
+            <div class="card-title" style="margin-top: 18px;">🏷️ Precios Sugeridos al Cliente</div>
+
+            <!-- TIER 1 -->
+            <div class="tier-card">
+                <div class="tier-header">
+                    <span>COMPETITIVO (+50%)</span>
+                    <span>Protegido BCV</span>
+                </div>
+                <div class="tier-prices">
+                    <span class="usd-price" id="t1Usd">$0.00</span>
+                    <span class="ves-price" id="t1Ves">0.00 VES</span>
+                </div>
+            </div>
+
+            <!-- TIER 2 -->
+            <div class="tier-card" style="border-color: var(--primary);">
+                <div class="tier-header">
+                    <span style="color: #60a5fa;">ESTÁNDAR RETAIL (+100%)</span>
+                    <span>Protegido BCV</span>
+                </div>
+                <div class="tier-prices">
+                    <span class="usd-price" id="t2Usd">$0.00</span>
+                    <span class="ves-price" id="t2Ves">0.00 VES</span>
+                </div>
+            </div>
+
+            <!-- TIER 3 -->
+            <div class="tier-card">
+                <div class="tier-header">
+                    <span>PREMIUM / DISEÑO (+200%)</span>
+                    <span>Protegido BCV</span>
+                </div>
+                <div class="tier-prices">
+                    <span class="usd-price" id="t3Usd">$0.00</span>
+                    <span class="ves-price" id="t3Ves">0.00 VES</span>
+                </div>
+            </div>
+
+            <button class="copy-btn" onclick="copiarPresupuesto()">📋 Copiar Cotización WhatsApp</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        Manufactura 3D - Cálculo con Blindaje Cambiario
+    </div>
+</div>
+
+<script>
+    let manoObra = 1.5;
+
+    function setLabor(val, btn) {
+        manoObra = val;
+        document.querySelectorAll('.btn-labor').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        calcular();
+    }
+
+    function calcular() {
+        const peso = parseFloat(document.getElementById('peso').value) || 0;
+        const costoBobina = parseFloat(document.getElementById('costoBobina').value) || 0;
+        const tiempo = parseFloat(document.getElementById('tiempo').value) || 0;
+        const costoHora = parseFloat(document.getElementById('costoHora').value) || 0;
+        const brechaPct = parseFloat(document.getElementById('brecha').value) || 0;
+        const tasaBcv = parseFloat(document.getElementById('tasaBcv').value) || 0;
+
+        // Cálculos base
+        const matCost = (costoBobina / 1000) * peso;
+        const maqCost = tiempo * costoHora;
+        const eneCost = tiempo * 0.0267;
+        const subtotal = matCost + maqCost + eneCost + manoObra;
+        const riesgoCost = subtotal * 0.10;
+        const costoReal = subtotal + riesgoCost;
+
+        // Precios base USD
+        const p1Usd = costoReal * 1.50;
+        const p2Usd = costoReal * 2.00;
+        const p3Usd = costoReal * 3.00;
+
+        // Brecha cambiaria
+        const factorBrecha = 1 + (brechaPct / 100);
+
+        const p1UsdProt = p1Usd * factorBrecha;
+        const p2UsdProt = p2Usd * factorBrecha;
+        const p3UsdProt = p3Usd * factorBrecha;
+
+        const p1Ves = p1UsdProt * tasaBcv;
+        const p2Ves = p2UsdProt * tasaBcv;
+        const p3Ves = p3UsdProt * tasaBcv;
+
+        // Mostrar resultados
+        document.getElementById('resMat').innerText = '$' + matCost.toFixed(2);
+        document.getElementById('resMaq').innerText = '$' + maqCost.toFixed(2);
+        document.getElementById('resEne').innerText = '$' + eneCost.toFixed(2);
+        document.getElementById('resObra').innerText = '$' + manoObra.toFixed(2);
+        document.getElementById('resRiesgo').innerText = '$' + riesgoCost.toFixed(2);
+        document.getElementById('resCostoReal').innerText = '$' + costoReal.toFixed(2) + ' USD';
+
+        document.getElementById('t1Usd').innerText = '$' + p1Usd.toFixed(2) + ' USD';
+        document.getElementById('t2Usd').innerText = '$' + p2Usd.toFixed(2) + ' USD';
+        document.getElementById('t3Usd').innerText = '$' + p3Usd.toFixed(2) + ' USD';
+
+        document.getElementById('t1Ves').innerText = p1Ves.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' VES';
+        document.getElementById('t2Ves').innerText = p2Ves.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' VES';
+        document.getElementById('t3Ves').innerText = p3Ves.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' VES';
+    }
+
+    function copiarPresupuesto() {
+        const p2Usd = document.getElementById('t2Usd').innerText;
+        const p2Ves = document.getElementById('t2Ves').innerText;
+        const tasaBcv = document.getElementById('tasaBcv').value;
+
+        const texto = `👋 ¡Hola! Aquí tienes la cotización de tu pieza 3D:\n\n` +
+            `💵 **Efectivo / USDT:** ${p2Usd}\n` +
+            `🇻🇪 **Pago Móvil / BS (BCV):** ${p2Ves}\n\n` +
+            `*(Tasa BCV de referencia: ${tasaBcv} VES/$)*`;
+
+        navigator.clipboard.writeText(texto).then(() => {
+            alert('¡Cotización copiada al portapapeles!');
+        });
+    }
+
+    document.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', calcular);
+    });
+
+    calcular();
+</script>
+
+</body>
+</html>
