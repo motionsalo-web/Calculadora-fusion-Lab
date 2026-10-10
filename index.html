@@ -128,6 +128,24 @@
             border: 1px dashed var(--primary); color: #60a5fa; border-radius: 8px;
             font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
         }
+        .row-4 { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1.2fr; gap: 10px; }
+        @media (max-width: 400px) { .row-4 { grid-template-columns: 1fr 1fr; } }
+        .loader {
+            border: 1.5px dashed var(--border-color); border-radius: 10px;
+            padding: 14px; margin-bottom: 14px; text-align: center;
+            cursor: pointer; transition: border-color .15s, background-color .15s;
+        }
+        .loader:hover, .loader.drag { border-color: var(--primary); background-color: rgba(59,130,246,0.10); }
+        .loader-title { font-weight: 600; font-size: 0.92rem; }
+        .loader-sub { font-size: 0.74rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+        .loader-msg { font-size: 0.8rem; margin: -4px 0 12px; line-height: 1.45; display: none; }
+        .loader-msg.ok   { display: block; color: var(--success); }
+        .loader-msg.warn { display: block; color: var(--warning); }
+        .loader-msg.err  { display: block; color: var(--danger); }
+        .loader-opts { margin: -4px 0 14px; }
+        .loader-opts summary { font-size: 0.75rem; color: var(--text-muted); cursor: pointer; }
+        .plate-sub { overflow-wrap: anywhere; }
+
         .btn-add:hover { background-color: rgba(59,130,246,0.12); }
 
         .plate-total {
@@ -336,6 +354,30 @@
             <!-- PLACAS -->
             <div class="card">
                 <div class="card-title">🧱 Placas de Impresión</div>
+                <div class="loader" id="loader" role="button" tabindex="0">
+                    <div class="loader-title">📂 Cargar archivo laminado (.3mf) o STL</div>
+                    <div class="loader-sub">Toca aquí o arrastra el archivo. El .3mf laminado de Bambu Studio
+                        trae el peso y el tiempo reales de cada placa. El STL solo da un estimado.</div>
+                    <input type="file" id="fileIn" accept=".3mf,.stl" multiple style="display:none;">
+                </div>
+                <div class="loader-msg" id="loaderMsg"></div>
+                <details class="loader-opts">
+                    <summary>Opciones de carga</summary>
+                    <label class="check-row">
+                        <input type="checkbox" id="cargaSumar">
+                        Agregar a las placas actuales (no reemplazarlas)
+                    </label>
+                    <div class="row-2" style="margin-top:10px;">
+                        <div>
+                            <span class="mini-label">STL: % del volumen que es plástico</span>
+                            <input type="number" id="estSolido" class="form-control sm" value="35" step="5" min="5" max="100">
+                        </div>
+                        <div>
+                            <span class="mini-label">STL: velocidad (g por hora)</span>
+                            <input type="number" id="estGh" class="form-control sm" value="20" step="1" min="1">
+                        </div>
+                    </div>
+                </details>
                 <div id="placasCont"></div>
                 <button type="button" class="btn-add" onclick="addPlaca()">+ Agregar otra placa</button>
             </div>
@@ -650,6 +692,7 @@
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
     const LS_KEY = 'fusionlab_calc_v1';
     let laborIdx = 1;
@@ -660,6 +703,8 @@
     const el  = id => document.getElementById(id);
     const num = id => parseFloat(el(id).value) || 0;
     const fmt = n => '$' + n.toFixed(2);
+    const hm  = h => { const t = Math.round(h * 60), a = Math.floor(t / 60), b = t % 60;
+                       return a && b ? `${a} h ${b} min` : (a ? `${a} h` : `${b} min`); };
     const fmtVes = n => n.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
     /* ---------------- PLACAS ---------------- */
@@ -667,6 +712,9 @@
         d = d || {};
         placaSeq++;
         const id = placaSeq;
+        /* tiempo: acepta horas decimales (datos viejos o archivos) y lo separa en h + min */
+        const tTot = Math.max(0, Math.round(((parseFloat(d.horas ?? 6) || 0) * 60) + (parseFloat(d.min) || 0)));
+        const tH = Math.floor(tTot / 60), tM = tTot % 60;
         const div = document.createElement('div');
         div.className = 'plate';
         div.dataset.id = id;
@@ -674,18 +722,22 @@
             <div class="plate-head">
                 <div>
                     <div class="plate-name">Placa <span class="plate-num"></span></div>
-                    <div class="plate-sub">material · tiempo · repeticiones</div>
+                    <div class="plate-sub"></div>
                 </div>
                 <button type="button" class="btn-del" onclick="delPlaca(${id})">✕ Quitar</button>
             </div>
-            <div class="row-3">
+            <div class="row-4">
                 <div>
                     <span class="mini-label">Peso (g)</span>
                     <input type="number" class="form-control sm p-peso" value="${d.peso ?? 120}" step="1" min="0">
                 </div>
                 <div>
-                    <span class="mini-label">Tiempo (hrs)</span>
-                    <input type="number" class="form-control sm p-horas" value="${d.horas ?? 6}" step="0.5" min="0">
+                    <span class="mini-label">Horas</span>
+                    <input type="number" class="form-control sm p-horas" value="${tH}" step="1" min="0">
+                </div>
+                <div>
+                    <span class="mini-label">Minutos</span>
+                    <input type="number" class="form-control sm p-min" value="${tM}" step="1" min="0">
                 </div>
                 <div>
                     <span class="mini-label">Bobina ($/kg)</span>
@@ -706,6 +758,8 @@
                 <span class="p-info">—</span>
                 <b class="p-sub">$0.00</b>
             </div>`;
+        div.dataset.nota = d.nota || '';
+        div.querySelector('.plate-sub').textContent = d.nota || 'material · tiempo · repeticiones';
         el('placasCont').appendChild(div);
         div.querySelectorAll('input').forEach(i => i.addEventListener('input', calcular));
         renumerar();
@@ -875,7 +929,8 @@
 
         document.querySelectorAll('#placasCont .plate').forEach((p, i) => {
             const peso   = parseFloat(p.querySelector('.p-peso').value)   || 0;
-            const horas  = parseFloat(p.querySelector('.p-horas').value)  || 0;
+            const horas  = (parseFloat(p.querySelector('.p-horas').value) || 0) +
+                           (parseFloat(p.querySelector('.p-min').value)   || 0) / 60;
             const bobina = parseFloat(p.querySelector('.p-bobina').value) || 0;
             const rep    = Math.max(1, parseInt(p.querySelector('.p-rep').value)    || 1);
             const piezas = Math.max(1, parseInt(p.querySelector('.p-piezas').value) || 1);
@@ -893,7 +948,7 @@
             totalPiezas += rep * piezas;
 
             p.querySelector('.p-sub').innerText  = fmt(sub);
-            p.querySelector('.p-info').innerText = `${grReal.toFixed(0)} g · ${hrs.toFixed(1)} hrs · ${rep*piezas} pza`;
+            p.querySelector('.p-info').innerText = `${grReal.toFixed(0)} g · ${hm(hrs)} · ${rep*piezas} pza`;
 
             detalle.push({n: i+1, peso: peso, horas: horas, rep: rep, piezas: rep*piezas, sub: sub});
         });
@@ -953,6 +1008,7 @@
         el('resPlacas').innerText   = `${detalle.length} placa(s) · ${totalPiezas} pieza(s)`;
         el('resGr').innerText       = totalGr.toFixed(0);
         el('resHrs').innerText      = totalHrs.toFixed(1);
+        el('resHrs').dataset.h      = totalHrs;
         el('resMat').innerText      = fmt(matCost);
         el('resMaq').innerText      = fmt(maqCost);
         el('resEne').innerText      = fmt(eneCost);
@@ -976,7 +1032,7 @@
 
         /* --- hoja de impresión --- */
         el('psPlacas').innerHTML = detalle.map(d =>
-            `<tr><td>Placa ${d.n}</td><td class="r">${d.peso} g</td><td class="r">${d.horas} h</td>` +
+            `<tr><td>Placa ${d.n}</td><td class="r">${d.peso} g</td><td class="r">${hm(d.horas)}</td>` +
             `<td class="r">×${d.rep}</td><td class="r">${d.piezas}</td><td class="r">${fmt(d.sub)}</td></tr>`
         ).join('');
         el('psMat').innerText   = fmt(matCost);
@@ -1034,7 +1090,7 @@
     /* ---------------- PERSISTENCIA ---------------- */
     const CAMPOS = ['costoHora','costoEnergia','merma','riesgo','obraBaja','obraStd','obraAlta',
                     'margen','brecha','tasaBcv','dPrecio','dVida','dMant','dHrsAno',
-                    'cliente','trabajo','numCot','validez'];
+                    'cliente','trabajo','numCot','validez','estSolido','estGh'];
 
     function guardar() {
         if (!listo) return;
@@ -1051,9 +1107,11 @@
         document.querySelectorAll('#placasCont .plate').forEach(p => data.placas.push({
             peso:   p.querySelector('.p-peso').value,
             horas:  p.querySelector('.p-horas').value,
+            min:    p.querySelector('.p-min').value,
             bobina: p.querySelector('.p-bobina').value,
             rep:    p.querySelector('.p-rep').value,
-            piezas: p.querySelector('.p-piezas').value
+            piezas: p.querySelector('.p-piezas').value,
+            nota:   p.dataset.nota || ''
         }));
         try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e) {}
     }
@@ -1108,7 +1166,7 @@
         const bcvVes = el('pBcvVes').innerText;
         const tasa   = el('tasaBcv').value;
         const placas = document.querySelectorAll('#placasCont .plate').length;
-        const hrs    = el('resHrs').innerText;
+        const hrs    = hm(parseFloat(el('resHrs').dataset.h) || 0);
         const piezas = el('psPiezas').innerText;
         const trabajo= el('trabajo').value.trim();
 
@@ -1130,7 +1188,7 @@
         const texto =
             `👋 ¡Hola! Aquí tienes tu cotización de FusionLab:\n\n` +
             (trabajo ? `🔧 ${trabajo}\n` : '') +
-            `🧱 ${placas} placa(s) · ${piezas} pieza(s) · ⏱️ ${hrs} hrs\n` +
+            `🧱 ${placas} placa(s) · ${piezas} pieza(s) · ⏱️ ${hrs}\n` +
             desc + `\n` +
             precios +
             `\nCotización válida por ${el('validez').value} días.`;
@@ -1149,6 +1207,131 @@
             {year:'numeric', month:'long', day:'numeric'});
         window.print();
     }
+
+    /* ---------------- CARGA DE ARCHIVOS (.3mf laminado / STL) ---------------- */
+    const DENSIDAD_PLA = 1.24;   // g/cm3
+
+    function msgCarga(tipo, texto) {
+        const m = el('loaderMsg');
+        m.className = 'loader-msg ' + tipo;
+        m.textContent = texto;
+    }
+
+    /* 3MF laminado de Bambu Studio / Orca: Metadata/slice_info.config trae,
+       por placa, "prediction" (segundos) y "weight" (gramos, con purga y torre). */
+    async function leer3mf(file) {
+        if (typeof JSZip === 'undefined')
+            throw new Error('no se pudo cargar el lector de .3mf (revisa tu conexión y recarga la página)');
+        const zip = await JSZip.loadAsync(await file.arrayBuffer());
+        const key = Object.keys(zip.files).find(k => k.toLowerCase().replace(/^\//, '') === 'metadata/slice_info.config');
+        if (!key) return [];
+        const xml = new DOMParser().parseFromString(await zip.files[key].async('string'), 'application/xml');
+        const out = [];
+        xml.querySelectorAll('plate').forEach(pl => {
+            const meta = {};
+            pl.querySelectorAll('metadata').forEach(m => meta[m.getAttribute('key')] = m.getAttribute('value'));
+            const fils = [...pl.querySelectorAll('filament')];
+            let peso = parseFloat(meta.weight) || 0;
+            if (!peso) peso = fils.reduce((a, f) => a + (parseFloat(f.getAttribute('used_g')) || 0), 0);
+            const seg = parseFloat(meta.prediction) || 0;
+            if (peso <= 0 || seg <= 0) return;
+            const tipos = [...new Set(fils.map(f => f.getAttribute('type')).filter(Boolean))].join('/');
+            const nota = file.name + ' · placa ' + (meta.index || out.length + 1) +
+                         (fils.length ? ' · ' + (tipos || 'filamento') +
+                             (fils.length > 1 ? ' ' + fils.length + ' colores' : '') : '');
+            out.push({peso: +peso.toFixed(1), horas: +(seg / 3600).toFixed(2), nota});
+        });
+        return out;
+    }
+
+    /* STL: solo trae la forma. Se mide el volumen y se estima. */
+    function volumenStl(buf) {
+        const dv = new DataView(buf);
+        let vol = 0;
+        const tetra = (ax,ay,az,bx,by,bz,cx,cy,cz) =>
+            (ax*(by*cz - bz*cy) - ay*(bx*cz - bz*cx) + az*(bx*cy - by*cx)) / 6;
+        const n = buf.byteLength >= 84 ? dv.getUint32(80, true) : 0;
+        if (buf.byteLength >= 84 && buf.byteLength === 84 + n * 50) {          // binario
+            for (let i = 0, o = 84; i < n; i++, o += 50) {
+                vol += tetra(
+                    dv.getFloat32(o+12,true), dv.getFloat32(o+16,true), dv.getFloat32(o+20,true),
+                    dv.getFloat32(o+24,true), dv.getFloat32(o+28,true), dv.getFloat32(o+32,true),
+                    dv.getFloat32(o+36,true), dv.getFloat32(o+40,true), dv.getFloat32(o+44,true));
+            }
+        } else {                                                               // ASCII
+            const txt = new TextDecoder().decode(buf);
+            const re = /vertex\s+(\S+)\s+(\S+)\s+(\S+)/g;
+            let m, v = [];
+            while ((m = re.exec(txt))) {
+                v.push(+m[1], +m[2], +m[3]);
+                if (v.length === 9) { vol += tetra(...v); v = []; }
+            }
+        }
+        return Math.abs(vol) / 1000;   // mm3 -> cm3
+    }
+
+    async function leerStl(file) {
+        const cm3 = volumenStl(await file.arrayBuffer());
+        if (!(cm3 > 0)) throw new Error('no se pudo medir el volumen');
+        const solido = Math.min(100, Math.max(5, num('estSolido') || 35)) / 100;
+        const gh     = Math.max(1, num('estGh') || 20);
+        const peso   = cm3 * DENSIDAD_PLA * solido;
+        return [{peso: +peso.toFixed(1), horas: +(peso / gh).toFixed(2),
+                 nota: file.name + ' · ESTIMADO (' + cm3.toFixed(1) + ' cm³)'}];
+    }
+
+    async function cargarArchivos(fileList) {
+        const files = [...fileList];
+        if (!files.length) return;
+        msgCarga('warn', 'Leyendo…');
+        const nuevas = [], avisos = [];
+        let hayStl = false;
+        for (const f of files) {
+            const nombre = f.name.toLowerCase();
+            try {
+                if (nombre.endsWith('.3mf')) {
+                    const pl = await leer3mf(f);
+                    if (pl.length) nuevas.push(...pl);
+                    else avisos.push(f.name + ' no está laminado: en Bambu Studio lamina todas las placas y usa ' +
+                                     'Archivo → Exportar → «Exportar todos los archivos de placas laminadas» (.gcode.3mf).');
+                } else if (nombre.endsWith('.stl')) {
+                    nuevas.push(...await leerStl(f));
+                    hayStl = true;
+                } else {
+                    avisos.push(f.name + ': formato no soportado (usa .3mf o .stl).');
+                }
+            } catch (e) {
+                avisos.push(f.name + ': ' + (e.message || 'no se pudo leer') + '.');
+            }
+        }
+        if (!nuevas.length) { msgCarga('err', avisos.join(' ') || 'No se encontró nada que cargar.'); return; }
+
+        const primera = document.querySelector('#placasCont .plate .p-bobina');
+        const bobina  = primera ? primera.value : 20;
+        if (!el('cargaSumar').checked) el('placasCont').innerHTML = '';
+        nuevas.forEach(p => addPlaca({...p, bobina}));
+
+        const nombres = [...new Set(files.map(f => f.name.replace(/(\.gcode)?\.(3mf|stl)$/i, '')))];
+        if (!el('trabajo').value.trim()) el('trabajo').value = nombres.join(' + ');
+        calcular();
+
+        const g = nuevas.reduce((a, p) => a + p.peso, 0), h = nuevas.reduce((a, p) => a + p.horas, 0);
+        const txt = `✔ ${nuevas.length} placa(s) cargada(s): ${g.toFixed(0)} g · ${h.toFixed(1)} h.` +
+                    (hayStl ? ' El STL es un estimado; para el precio real carga el .3mf laminado.' : '') +
+                    (avisos.length ? ' ' + avisos.join(' ') : '');
+        msgCarga(hayStl || avisos.length ? 'warn' : 'ok', txt);
+    }
+
+    (function initCarga() {
+        const zona = el('loader'), inp = el('fileIn');
+        zona.addEventListener('click', () => inp.click());
+        zona.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } });
+        inp.addEventListener('click', e => e.stopPropagation());
+        inp.addEventListener('change', () => { cargarArchivos(inp.files); inp.value = ''; });
+        ['dragenter', 'dragover'].forEach(t => zona.addEventListener(t, e => { e.preventDefault(); zona.classList.add('drag'); }));
+        ['dragleave', 'drop'].forEach(t => zona.addEventListener(t, e => { e.preventDefault(); zona.classList.remove('drag'); }));
+        zona.addEventListener('drop', e => cargarArchivos(e.dataTransfer.files));
+    })();
 
     /* ---------------- INIT ---------------- */
     document.querySelectorAll('.card input').forEach(i => {
