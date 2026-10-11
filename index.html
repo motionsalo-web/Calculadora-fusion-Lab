@@ -130,6 +130,12 @@
         }
         .row-4 { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1.2fr; gap: 10px; }
         @media (max-width: 400px) { .row-4 { grid-template-columns: 1fr 1fr; } }
+        .acc { opacity: .6; transition: opacity .15s; }
+        .acc.on { opacity: 1; border-color: var(--primary); }
+        .acc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .acc-head .a-nombre { flex: 1; min-width: 0; }
+        .switch { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .switch input { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
         .loader {
             border: 1.5px dashed var(--border-color); border-radius: 10px;
             padding: 14px; margin-bottom: 14px; text-align: center;
@@ -467,6 +473,13 @@
                 </div>
             </div>
 
+            <!-- ACCESORIOS -->
+            <div class="card">
+                <div class="card-title">🔗 Accesorios (aro de llavero, imán, etc.)</div>
+                <div id="accCont"></div>
+                <button type="button" class="btn-add" onclick="addAcc()">+ Agregar otro accesorio</button>
+            </div>
+
             <!-- GANANCIA Y TASA -->
             <div class="card">
                 <div class="card-title">🇻🇪 Ganancia y Tasa</div>
@@ -527,6 +540,7 @@
                 <div class="cost-row"><span class="label">Máquina (<span id="resHrs">0</span> hrs):</span><span class="value" id="resMaq">$0.00</span></div>
                 <div class="cost-row"><span class="label">Energía:</span><span class="value" id="resEne">$0.00</span></div>
                 <div class="cost-row"><span class="label">Mano de Obra:</span><span class="value" id="resObra">$0.00</span></div>
+                <div class="cost-row"><span class="label">Accesorios<span id="resAccTxt"></span>:</span><span class="value" id="resAcc">$0.00</span></div>
                 <div class="cost-row"><span class="label">Riesgo / Fallos (<span id="resRiesgoPct">10</span>%):</span><span class="value" id="resRiesgo">$0.00</span></div>
 
                 <div class="total-box">
@@ -648,6 +662,7 @@
             <tr><td>Máquina</td><td class="r" id="psMaq">$0.00</td></tr>
             <tr><td>Energía</td><td class="r" id="psEne">$0.00</td></tr>
             <tr><td>Mano de obra / post-procesado</td><td class="r" id="psObra">$0.00</td></tr>
+            <tr id="psAccRow" style="display:none;"><td>Accesorios<span id="psAccTxt"></span></td><td class="r" id="psAcc">$0.00</td></tr>
             <tr><td>Riesgo / fallos</td><td class="r" id="psRiesgo">$0.00</td></tr>
         </table>
 
@@ -779,6 +794,55 @@
         document.querySelectorAll('#placasCont .plate').forEach((p, i) => {
             p.querySelector('.plate-num').innerText = i + 1;
         });
+    }
+
+    /* ---------------- ACCESORIOS ----------------
+       Piezas compradas que lleva cada unidad (aro de llavero, imán, cadena...).
+       Se marcan con "Lleva" y su costo se suma por cada pieza del pedido. */
+    function addAcc(d) {
+        d = d || {};
+        const div = document.createElement('div');
+        div.className = 'plate acc';
+        div.innerHTML = `
+            <div class="acc-head">
+                <label class="switch"><input type="checkbox" class="a-on"> Lleva</label>
+                <input type="text" class="form-control sm a-nombre" placeholder="Nombre (ej. Aro de llavero)">
+                <button type="button" class="btn-del" title="Quitar de la lista">✕</button>
+            </div>
+            <div class="row-2">
+                <div>
+                    <span class="mini-label">Precio de cada uno ($)</span>
+                    <input type="number" class="form-control sm a-precio" step="0.01" min="0" placeholder="0.00">
+                </div>
+                <div>
+                    <span class="mini-label">Cuántos lleva cada pieza</span>
+                    <input type="number" class="form-control sm a-cant" step="1" min="1">
+                </div>
+            </div>
+            <div class="plate-total">
+                <span class="a-info">—</span>
+                <b class="a-sub">$0.00</b>
+            </div>`;
+        div.querySelector('.a-on').checked    = !!d.on;
+        div.querySelector('.a-nombre').value  = d.nombre ?? '';
+        div.querySelector('.a-precio').value  = d.precio ?? '';
+        div.querySelector('.a-cant').value    = d.cant ?? 1;
+        div.querySelector('.btn-del').addEventListener('click', () => { div.remove(); calcular(); });
+        div.querySelectorAll('input').forEach(i => {
+            i.addEventListener('input', calcular);
+            i.addEventListener('change', calcular);
+        });
+        el('accCont').appendChild(div);
+        if (listo) calcular();
+    }
+
+    function leerAccesorios() {
+        return [...document.querySelectorAll('#accCont .acc')].map(a => ({
+            on:     a.querySelector('.a-on').checked,
+            nombre: a.querySelector('.a-nombre').value.trim(),
+            precio: a.querySelector('.a-precio').value,
+            cant:   a.querySelector('.a-cant').value
+        }));
     }
 
     /* ---------------- ESCALAS AL MAYOR ----------------
@@ -958,7 +1022,25 @@
         const eneCost   = totalHrs * costoEnergia;
         const subtotal  = matCost + maqCost + eneCost + manoObra;
         const riesgoCost= subtotal * (riesgoPct / 100);
-        const costoReal = subtotal + riesgoCost;
+
+        /* --- accesorios: costo por cada pieza del pedido (no llevan % de riesgo) --- */
+        let accCost = 0;
+        const accUsados = [];
+        document.querySelectorAll('#accCont .acc').forEach(a => {
+            const on     = a.querySelector('.a-on').checked;
+            const precio = parseFloat(a.querySelector('.a-precio').value) || 0;
+            const cant   = Math.max(1, parseInt(a.querySelector('.a-cant').value) || 1);
+            const nombre = a.querySelector('.a-nombre').value.trim() || 'Accesorio';
+            const sub    = on ? precio * cant * totalPiezas : 0;
+            a.classList.toggle('on', on);
+            a.querySelector('.a-sub').innerText  = fmt(sub);
+            a.querySelector('.a-info').innerText = !on ? 'No lleva'
+                : (precio > 0 ? `${totalPiezas} pza × ${cant} × ${fmt(precio)}` : '⚠️ Falta el precio');
+            if (on) { accCost += sub; accUsados.push(nombre); }
+        });
+        const accTxt = accUsados.length ? ' (' + accUsados.join(', ') + ')' : '';
+
+        const costoReal = subtotal + riesgoCost + accCost;
 
         /* --- precio de lista (antes de descuento por volumen) --- */
         const pLista   = costoReal * (1 + margenPct / 100);
@@ -1013,6 +1095,9 @@
         el('resMaq').innerText      = fmt(maqCost);
         el('resEne').innerText      = fmt(eneCost);
         el('resObra').innerText     = fmt(manoObra);
+        el('resAcc').innerText      = fmt(accCost);
+        el('resAccTxt').innerText   = accTxt;
+        el('resAcc').dataset.txt    = accUsados.join(', ');
         el('resRiesgoPct').innerText= riesgoPct;
         el('resRiesgo').innerText   = fmt(riesgoCost);
         el('resCostoReal').innerText= fmt(costoReal) + ' USD';
@@ -1040,6 +1125,9 @@
         el('psEne').innerText   = fmt(eneCost);
         el('psObra').innerText  = fmt(manoObra);
         el('psRiesgo').innerText= fmt(riesgoCost);
+        el('psAcc').innerText   = fmt(accCost);
+        el('psAccTxt').innerText= accTxt;
+        el('psAccRow').style.display = accUsados.length ? '' : 'none';
         el('psPiezas').innerText= totalPiezas;
         el('psUsdt').innerText  = fmt(pUsdt);
         el('psBcv').innerText   = fmt(pBcvUsd);
@@ -1100,7 +1188,7 @@
             manUsdt: el('manUsdt').checked, ajUsdt: el('ajUsdt').value,
             manBcv:  el('manBcv').checked,  ajBcv:  el('ajBcv').value,
             mayorOn: el('mayorOn').checked, mayorEnPdf: el('mayorEnPdf').checked,
-            campos: {}, placas: [], escalas: []
+            campos: {}, placas: [], escalas: [], accesorios: leerAccesorios()
         };
         data.escalas = escalas.map(e => ({desde: e.desde, desc: e.desc}));
         CAMPOS.forEach(c => data.campos[c] = el(c).value);
@@ -1119,7 +1207,7 @@
     function cargar() {
         let data = null;
         try { data = JSON.parse(localStorage.getItem(LS_KEY)); } catch(e) {}
-        if (!data) { pintarEscalas(); addPlaca(); return false; }
+        if (!data) { pintarEscalas(); addAcc({nombre: 'Aro de llavero'}); addPlaca(); return false; }
 
         CAMPOS.forEach(c => { if (data.campos && data.campos[c] !== undefined) el(c).value = data.campos[c]; });
         el('obraPorPieza').checked = !!data.obraPorPieza;
@@ -1147,6 +1235,9 @@
             }));
         }
         pintarEscalas();
+
+        if (Array.isArray(data.accesorios)) data.accesorios.forEach(a => addAcc(a));
+        else addAcc({nombre: 'Aro de llavero'});
 
         if (data.placas && data.placas.length) data.placas.forEach(p => addPlaca(p));
         else addPlaca();
@@ -1189,6 +1280,7 @@
             `👋 ¡Hola! Aquí tienes tu cotización de FusionLab:\n\n` +
             (trabajo ? `🔧 ${trabajo}\n` : '') +
             `🧱 ${placas} placa(s) · ${piezas} pieza(s) · ⏱️ ${hrs}\n` +
+            (el('resAcc').dataset.txt ? `🔗 Incluye: ${el('resAcc').dataset.txt}\n` : '') +
             desc + `\n` +
             precios +
             `\nCotización válida por ${el('validez').value} días.`;
